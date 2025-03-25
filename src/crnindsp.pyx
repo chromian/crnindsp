@@ -74,6 +74,7 @@ cpdef tuple cy_kernel_image(cnp.ndarray[double, ndim=2] mat):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef double cydet(double[:,:] MAT, int n, int[:] IPIV, int INFO) nogil:
+    """ Compute the determinant of a square matrix MAT using  DGETRF from the LAPACK library. """
     cdef int j
     cdef double detval = 1.0
     dgetrf(&n, &n, &MAT[0,0], &n, &IPIV[0], &INFO)
@@ -87,6 +88,7 @@ cpdef double cydet(double[:,:] MAT, int n, int[:] IPIV, int INFO) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef double[:,:] cyadjugate(double[:,:] mat, int n, double[:,:,:] WORK, int[:,:] IPIV) nogil:
+    """ Compute the adjugate matrix of a square matrix mat. """
     cdef int i, j, row, col, nm1 = n-1
     for row in prange(n):
         for col in prange(n):
@@ -108,12 +110,14 @@ cdef double[:,:] cyadjugate(double[:,:] mat, int n, double[:,:,:] WORK, int[:,:]
     return mat
 
 def adj(A):
+    """ Compute the adjugate matrix of a square matrix. """
     n = A.shape[0]
     WORK = np.empty(shape = (n*n, n-1, n-1), dtype = float)
     IPIV = np.zeros(shape = (n*n, n-1), dtype = np.int32)
     return cyadjugate(A.copy(), n, WORK, IPIV)
 
 def det(A):
+    """ Compute the determinant of a square matrix. """
     return cydet(A.copy(), A.shape[0], np.zeros(A.shape[0], dtype=np.int32), 1)
 
 def det_for_symM(A, N=10, nlogtol=9):
@@ -139,7 +143,7 @@ def det_for_symM(A, N=10, nlogtol=9):
     if num_vars == 0:
         return np.sign(np.linalg.det(A))
     def compute_det(x):
-        """evaluate determinant by replacing placeholders with values in x."""
+        # evaluate determinant by replacing placeholders with values in x.
         x = np.array(x)
         tol = 10 ** (-nlogtol)
         # assign values based on placeholder signs
@@ -168,7 +172,7 @@ def det_for_symM(A, N=10, nlogtol=9):
 
 cdef cnp.ndarray[double, ndim=2] construct_A_from(cnp.ndarray[double, ndim=2] stoi,
                                                   cnp.ndarray[double, ndim=2] reginfo):
-    """Construct the A matrix from stoichiometric and regulation information."""
+    """ Construct the A matrix from stoichiometric and regulation information. """
     C = cy_kernel_image(stoi)[0]
     DT = cy_kernel_image(stoi.T)[0].T
     M = stoi.shape[0]
@@ -180,7 +184,7 @@ cdef cnp.ndarray[double, ndim=2] construct_A_from(cnp.ndarray[double, ndim=2] st
     return A
 
 cdef int _check_OC(double[:,:] reg_info, list X, list R):
-    """Verify output-completeness of a subnetwork."""
+    """ Verify output-completeness of a subnetwork. """
     cdef int m, n
     for m in X:
         if any(not iszero(reg_info[m, n]) for n in set(range(reg_info.shape[1])) - set(R)):
@@ -188,11 +192,11 @@ cdef int _check_OC(double[:,:] reg_info, list X, list R):
     return True
 
 cdef int iszero1d(x):
-    """Check if all elements in an array are within tolerance of zero."""
+    """ Check if all elements in an array are within tolerance of zero. """
     return np.all(np.abs(x) < tol)
 
 cdef _check_no_eCQs(cnp.ndarray[double, ndim=2] stoi, cnp.ndarray[double, ndim=2] DT, list X, list R):
-    """Verify that the subnetwork has no emergent conserved quantities."""
+    """ Verify that the subnetwork has no emergent conserved quantities. """
     X_mask, R_mask = np.isin(range(stoi.shape[0]), X), np.isin(range(stoi.shape[1]), R)
     C11 = cy_kernel_image(stoi[X_mask, :][:, R_mask])[0]
     NU01C11 = np.dot(stoi[~X_mask, :][:, R_mask], C11)
@@ -202,7 +206,7 @@ cdef _check_no_eCQs(cnp.ndarray[double, ndim=2] stoi, cnp.ndarray[double, ndim=2
 cdef tuple _compute_index_and_det(cnp.ndarray[double, ndim=2] stoi,
                                   cnp.ndarray[double, ndim=2] reg_info,
                                   list X, list R):
-    """Compute index and determinant sign for a subnetwork."""
+    """ Compute index and determinant sign for a subnetwork. """
     cdef cnp.ndarray[double, ndim=2] subA
     X_mask, R_mask = np.isin(range(stoi.shape[0]), X), np.isin(range(stoi.shape[1]), R)
     C11   = cy_kernel_image(stoi[X_mask, :][:, R_mask])[0]
@@ -216,7 +220,7 @@ cdef tuple _compute_index_and_det(cnp.ndarray[double, ndim=2] stoi,
 
 
 class CRN:
-    """Class representing a Chemical Reaction Network (CRN)."""
+    """ Class representing a Chemical Reaction Network (CRN). """
 
     def __init__(self, stoi, reg_info = None, X_names = None, R_names = None, name = None):
         self.name = name
@@ -338,6 +342,7 @@ class CRN:
         return (x, r, idx, det)
 
 def indicator_subset(crn):
+    """ I dentify the indicator subset of a Chemical Reaction Network. """
     assert isinstance(crn, CRN)
     flag = True
     res  = []
