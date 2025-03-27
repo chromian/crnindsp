@@ -271,6 +271,7 @@ class CRN:
                         Xs.append(int(x))
                     for xids in (set(Xs) - set(Xids)):
                         Xids.append(xids)
+                    Xids = list(set(Xids))
                     if self.check_oc(Xids, Rids):
                         BSs.append(([int(m) for m in np.sort(Xids)], [int(n) for n in np.sort(Rids)],))
                         break
@@ -282,6 +283,9 @@ class CRN:
         elif startfrom == 'X':
             for m in range(self._stoi.shape[0]):
                 Xids, Rids = [m], []
+                for _m in np.arange(self._saved_S.shape[0])[np.any(DT_bool[DT_bool[:, m], :], axis = 0)]:
+                    Xids.append(int(_m))
+                Xids = list(set(Xids))
                 while True:
                     Rs = np.any(~(np.abs(self._reg_info[Xids, :]) < tol), axis = 0)
                     Rs = np.arange(len(Rs))[Rs]
@@ -302,6 +306,9 @@ class CRN:
             for n in range(self._stoi.shape[1]):
                 for m in range(self._stoi.shape[0]):
                     Xids, Rids = [m], [n]
+                    for _m in np.arange(self._saved_S.shape[0])[np.any(DT_bool[DT_bool[:, m], :], axis = 0)]:
+                        Xids.append(int(_m))
+                    Xids = list(set(Xids))
                     while True:
                         X0s = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(self._saved_S[:, Rids], axis = 1)]]
                         Xs = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(DT_bool[np.any(DT_bool[:, X0s], axis = 1), :], axis = 0)]]
@@ -346,22 +353,25 @@ class CRN:
         self._R_names  = [self._R_names[n] for n in range(len(self._R_names)) if (not R_mask[n])]
         return None
 
-    def proper_mBS(self):
-        for mode in ['R', 'XR']:
+    def proper_mBS(self, modes = ['R', 'X', 'XR']):
+        pBSs = []
+        for mode in modes:
             BSs = self._compute_BS(startfrom = mode)
             for x, r in BSs:
                 if self.check_no_ecqs(x, r):
                     idx, det = self.compute_idx_and_det(x, r)
                     if idx == 0:
-                        return (x, r, idx, det)
-        return None # supposed to be unreachable
+                        pBSs.append( (x, r, idx, det,) )
+        order = np.argsort([len(bs[0]) for bs in pBSs])
+        pBSs   = [pBSs[order[id]] for id in range(len(order))]
+        return pBSs[0]
 
-def indicator_subset(crn):
+def indicator_subset(crn, modes = ['R', 'X', 'XR']):
     """ I dentify the indicator subset of a Chemical Reaction Network. """
     assert isinstance(crn, CRN)
     flag = True
     res  = []
-    mBS  = crn.proper_mBS()
+    mBS  = crn.proper_mBS(modes)
     while True:
         res.append({"chemicals": [crn._X_names[m] for m in mBS[0]],
                     "reactions": [crn._R_names[n] for n in mBS[1]],
@@ -371,7 +381,6 @@ def indicator_subset(crn):
             break
         else:
             crn.structural_reduction(mBS[0], mBS[1])
-            # print(crn.A_mat())
             mBS  = crn.proper_mBS()
     return res
 
