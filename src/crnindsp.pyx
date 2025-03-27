@@ -26,7 +26,7 @@ cdef void swap_rows(cnp.ndarray[double, ndim=2] mat, int i, int j):
     mat[i] = mat[j]
     mat[j] = temp
 
-cpdef cnp.ndarray[double, ndim=2] cy_rref(cnp.ndarray[double, ndim=2] mat):
+cdef cnp.ndarray[double, ndim=2] cy_rref(cnp.ndarray[double, ndim=2] mat):
     """ Compute the reduced row echelon form of a given matrix. """
     cdef:
         int rows = mat.shape[0]
@@ -57,7 +57,7 @@ cpdef cnp.ndarray[double, ndim=2] cy_rref(cnp.ndarray[double, ndim=2] mat):
         col += 1
     return mat
 
-cpdef tuple cy_kernel_image(cnp.ndarray[double, ndim=2] mat):
+cdef tuple cy_kernel_image(cnp.ndarray[double, ndim=2] mat):
     """ Compute the null space and the image space of a given matrix using Gaussian elimination. """
     cdef:
         int rows = mat.T.shape[0]
@@ -73,7 +73,7 @@ cpdef tuple cy_kernel_image(cnp.ndarray[double, ndim=2] mat):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef double cydet(double[:,:] MAT, int n, int[:] IPIV, int INFO) nogil:
+cdef double cydet(double[:,:] MAT, int n, int[:] IPIV, int INFO) nogil:
     """ Compute the determinant of a square matrix MAT using  DGETRF from the LAPACK library. """
     cdef int j
     cdef double detval = 1.0
@@ -96,14 +96,12 @@ cdef double[:,:] cyadjugate(double[:,:] mat, int n, double[:,:,:] WORK, int[:,:]
                 for j in prange(nm1):
                     if (i>=row) and (j>=col):
                         WORK[n*row+col,i,j] = mat[i+1,j+1]
-                        continue
-                    if j >= col:
+                    elif j >= col:
                         WORK[n*row+col,i,j] = mat[i,j+1]
-                        continue
-                    if i >= row:
+                    elif i >= row:
                         WORK[n*row+col,i,j] = mat[i+1,j]
-                        continue
-                    WORK[n*row+col,i,j] = mat[i,j]
+                    else:
+                        WORK[n*row+col,i,j] = mat[i,j]
     for row in prange(n):
         for col in prange(n):
             mat[col, row] = (-1)**(row+col) * cydet(WORK[n*row+col], n-1, IPIV[n*row+col], 0)
@@ -233,6 +231,8 @@ class CRN:
         else:
             self._reg_info = np.where(stoi < tol, -np.inf, 0.0)
 
+        self._saved_S = None
+
     def A_mat(self):
         return construct_A_from(self._stoi, self._reg_info)
 
@@ -245,66 +245,91 @@ class CRN:
     def compute_idx_and_det(self, X, R):
         return _compute_index_and_det(self._stoi, self._reg_info, X, R)
 
-    def _smat(self, N = 5):
+    def _smat(self, N = 10):
         """sensitivity table dx/dr"""
         A = (self.A_mat()).copy()
         entryholder = ~(np.abs(A) < np.inf)
         S = (self._stoi * 0) > 1
         for n in range(N):
-            A[entryholder] = np.random.normal(size = (np.sum(entryholder),), scale = 20)
+            A[entryholder] = np.random.normal(size  = (np.sum(entryholder),),
+                                              scale = 10)
             _S = np.abs(adj(A)[:self._stoi.shape[0], :self._stoi.shape[1]]) > tol
             S  = S + _S
         return S
 
-    def _compute_bs(self, _smat = None):
+    def _compute_BS(self, startfrom = 'R', N = 10):
         BSs = []
-        if not (_smat is None):
-            S = _smat
-        else:
-            S = self._smat()
-        for n in range(self._stoi.shape[1]):
-            Rids = [n]
-            Xids = []
-            while True:
-                Xs = np.arange(S.shape[0])[np.any(S[:, Rids], axis = 1)]
-                for xids in (set(Xs) - set(Xids)):
-                    Xids.append(int(xids))
-                if (not self.check_oc(Xids, Rids)):
-                    Rs = np.any(~(np.abs(self._reg_info[Xids, :]) < tol), axis = 0)
-                    Rs = np.arange(len(Rs))[Rs]
-                    for rids in (set(Rs) - set(Rids)):
-                        Rids.append(int(rids))
-                else:
-                    BSs.append(([int(m) for m in np.sort(Xids)], [int(n) for n in np.sort(Rids)],))
-                    break
-        order = np.argsort([len(bs[0]) for bs in BSs])
-        BSs   = [BSs[order[id]] for id in range(len(order))]
-        return BSs
-
-    def _compute_bs2(self, _smat = None):
-        BSs = []
-        if not (_smat is None):
-            S = _smat
-        else:
-            S = self._smat()
-        for m in range(self._stoi.shape[0]):
-            Xids = [m]
-            Rids = []
-            while True:
-                if self.check_oc(Xids, Rids):
-                    BSs.append(([int(m) for m in np.sort(Xids)], [int(n) for n in np.sort(Rids)],))
-                    break
-                else:
-                    Rs = np.any(~(np.abs(self._reg_info[Xids, :]) < tol), axis = 0)
-                    Rs = np.arange(len(Rs))[Rs]
-                    for rids in (set(Rs) - set(Rids)):
-                        Rids.append(int(rids))
-                    Xs = np.arange(S.shape[0])[np.any(S[:, Rids], axis = 1)]
+        DT_bool  = (np.abs(cy_kernel_image(self._stoi.T)[0].T) > tol)
+        self._saved_S = self._smat(N = N)
+        if startfrom == 'R':
+            for n in range(self._stoi.shape[1]):
+                Xids, Rids = [], [n]
+                while True:
+                    X0s = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(self._saved_S[:, Rids], axis = 1)]]
+                    Xs = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(DT_bool[np.any(DT_bool[:, X0s], axis = 1), :], axis = 0)]]
+                    for x in X0s:
+                        Xs.append(int(x))
                     for xids in (set(Xs) - set(Xids)):
-                        Xids.append(int(xids))
+                        Xids.append(xids)
+                    if self.check_oc(Xids, Rids):
+                        BSs.append(([int(m) for m in np.sort(Xids)], [int(n) for n in np.sort(Rids)],))
+                        break
+                    else:
+                        Rs = np.any(~(np.abs(self._reg_info[Xids, :]) < tol), axis = 0)
+                        Rs = np.arange(len(Rs))[Rs]
+                        for rids in (set(Rs) - set(Rids)):
+                            Rids.append(int(rids))
+        elif startfrom == 'X':
+            for m in range(self._stoi.shape[0]):
+                Xids, Rids = [m], []
+                while True:
+                    Rs = np.any(~(np.abs(self._reg_info[Xids, :]) < tol), axis = 0)
+                    Rs = np.arange(len(Rs))[Rs]
+                    for rids in (set(Rs) - set(Rids)):
+                        Rids.append(int(rids))
+                    X0s = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(self._saved_S[:, Rids], axis = 1)]]
+                    Xs = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(DT_bool[np.any(DT_bool[:, X0s], axis = 1), :], axis = 0)]]
+                    for x in X0s:
+                        Xs.append(int(x))
+                    for xids in (set(Xs) - set(Xids)):
+                        Xids.append(xids)
+                    if self.check_oc(Xids, Rids):
+                        BSs.append(([int(m) for m in np.sort(Xids)], [int(n) for n in np.sort(Rids)],))
+                        break
+                    else:
+                        pass
+        elif startfrom == 'XR':
+            for n in range(self._stoi.shape[1]):
+                for m in range(self._stoi.shape[0]):
+                    Xids, Rids = [m], [n]
+                    while True:
+                        X0s = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(self._saved_S[:, Rids], axis = 1)]]
+                        Xs = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(DT_bool[np.any(DT_bool[:, X0s], axis = 1), :], axis = 0)]]
+                        for x in X0s:
+                            Xs.append(int(x))
+                        for xids in (set(Xs) - set(Xids)):
+                            Xids.append(xids)
+                        if self.check_oc(Xids, Rids):
+                            BSs.append(([int(m) for m in np.sort(Xids)], [int(n) for n in np.sort(Rids)],))
+                            break
+                        else:
+                            Rs = np.any(~(np.abs(self._reg_info[Xids, :]) < tol), axis = 0)
+                            Rs = np.arange(len(Rs))[Rs]
+                            for rids in (set(Rs) - set(Rids)):
+                                Rids.append(int(rids))
         order = np.argsort([len(bs[0]) for bs in BSs])
         BSs   = [BSs[order[id]] for id in range(len(order))]
-        return BSs
+        uBSs  = []
+        # to remove duplicates
+        for g in BSs:
+            flag_unique = True
+            for g_ in uBSs:
+                if g == g_:
+                    flag_unique = False
+                    break
+            if flag_unique:
+                uBSs.append(g)
+        return uBSs
 
     def structural_reduction(self, X, R):
         X_mask = np.isin(range(self._stoi.shape[0]), X)
@@ -321,25 +346,15 @@ class CRN:
         self._R_names  = [self._R_names[n] for n in range(len(self._R_names)) if (not R_mask[n])]
         return None
 
-    def proper_mBS(self, ):
-        BSs = self._compute_bs2()
-        for x, r in BSs:
-            x = [int(xi) for xi in x]
-            r = [int(ri) for ri in r]
-            if self.check_no_ecqs(x, r):
-                idx, det = self.compute_idx_and_det(x, r)
-                if idx == 0:
-                    return (x, r, idx, det)
-        BSs = self._compute_bs()
-        for x, r in BSs:
-            x = [int(xi) for xi in x]
-            r = [int(ri) for ri in r]
-            if self.check_no_ecqs(x, r):
-                idx, det = self.compute_idx_and_det(x, r)
-                if idx == 0:
-                    return (x, r, idx, det)
-        idx, det = self.compute_idx_and_det(x, r)
-        return (x, r, idx, det)
+    def proper_mBS(self):
+        for mode in ['R', 'XR']:
+            BSs = self._compute_BS(startfrom = mode)
+            for x, r in BSs:
+                if self.check_no_ecqs(x, r):
+                    idx, det = self.compute_idx_and_det(x, r)
+                    if idx == 0:
+                        return (x, r, idx, det)
+        return None # supposed to be unreachable
 
 def indicator_subset(crn):
     """ I dentify the indicator subset of a Chemical Reaction Network. """
