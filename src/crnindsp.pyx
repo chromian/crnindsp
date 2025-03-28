@@ -216,6 +216,63 @@ cdef tuple _compute_index_and_det(cnp.ndarray[double, ndim=2] stoi,
         return (index, det_for_symM(subA))
     return (index, None)
 
+def _subnetwork_sorter(BSs):
+    for i in range(len(BSs)):
+        for j in range(0, len(BSs)-i-1):
+            if len(BSs[j][0]) > len(BSs[j+1][0]):
+                temp = BSs[j+1]
+                BSs[j+1] = BSs[j]
+                BSs[j] = temp
+            elif (len(BSs[j][0]) == len(BSs[j+1][0]) and (len(BSs[j][1]) > len(BSs[j+1][1]))):
+                temp = BSs[j+1]
+                BSs[j+1] = BSs[j]
+                BSs[j] = temp
+            else:
+                pass
+    uBSs = []
+    for g in BSs:
+        if not g in uBSs:
+            uBSs.append(g)
+    return uBSs
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef list _search_for_BS(cnp.ndarray[double, ndim=2] reg_info, # for checking OC
+                         cnp.ndarray[int,    ndim=2] sensimat, # for checking BF
+                         cnp.ndarray[double, ndim=2] DTdouble, # for checking eCQ
+                         ):
+    cdef int m, n, i, j, k, xi, ri, M = reg_info.shape[0], N = reg_info.shape[1]
+    DT = np.abs(DTdouble) > tol
+    BSs = []
+    # cdef cnp.ndarray[int, ndim=1] Xg, Rg, Xgrelated, Rgregulated, Xgaffected
+    reg_bool = ~(np.abs(reg_info) < np.inf)
+    for n in range(N):
+        for m in range(-1, M):
+            Rg = np.zeros(shape = (N,), dtype = bool)
+            Rg[n] = True
+            Xg = np.zeros(shape = (M,), dtype = bool)
+            if m >= 0:
+                Xg[m] = True
+                Xgrelated = np.any(DT[np.any(DT[:,Xg], axis = 1), :], axis = 0)
+                Xg = Xg + Xgrelated
+            for k in range(M+N): # since the step number of updations should not exceed this number.
+                # check OC
+                if not np.any(reg_bool[Xg, :][:, ~Rg]):
+                    BSs.append( ([xi for xi in range(M) if Xg[xi]],
+                                 [ri for ri in range(N) if Rg[ri]],) )
+                    break
+                # make it OC
+                Rgregulated = np.any(reg_bool[Xg, :], axis = 0)
+                Rg = Rg + Rgregulated
+                # make sure BF
+                Xgaffected = np.any(sensimat[:, Rg], axis = 1)
+                Xg = Xg + Xgaffected
+                # make sure no eCQs
+                Xgrelated = np.any(DT[np.any(DT[:,Xg], axis = 1), :], axis = 0)
+                Xg = Xg + Xgrelated
+    BSs = _subnetwork_sorter(BSs)
+    return BSs
+
 
 class CRN:
     """ Class representing a Chemical Reaction Network (CRN). """
@@ -245,7 +302,7 @@ class CRN:
     def compute_idx_and_det(self, X, R):
         return _compute_index_and_det(self._stoi, self._reg_info, X, R)
 
-    def _smat(self, N = 10):
+    def _smat(self, N = 5):
         """sensitivity table dx/dr"""
         A = (self.A_mat()).copy()
         entryholder = ~(np.abs(A) < np.inf)
@@ -256,87 +313,6 @@ class CRN:
             _S = np.abs(adj(A)[:self._stoi.shape[0], :self._stoi.shape[1]]) > tol
             S  = S + _S
         return S
-
-    def _compute_BS(self, startfrom = 'R', N = 10):
-        BSs = []
-        DT_bool  = (np.abs(cy_kernel_image(self._stoi.T)[0].T) > tol)
-        self._saved_S = self._smat(N = N)
-        if startfrom == 'R':
-            for n in range(self._stoi.shape[1]):
-                Xids, Rids = [], [n]
-                while True:
-                    X0s = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(self._saved_S[:, Rids], axis = 1)]]
-                    Xs = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(DT_bool[np.any(DT_bool[:, X0s], axis = 1), :], axis = 0)]]
-                    for x in X0s:
-                        Xs.append(int(x))
-                    for xids in (set(Xs) - set(Xids)):
-                        Xids.append(xids)
-                    Xids = list(set(Xids))
-                    if self.check_oc(Xids, Rids):
-                        BSs.append(([int(m) for m in np.sort(Xids)], [int(n) for n in np.sort(Rids)],))
-                        break
-                    else:
-                        Rs = np.any(~(np.abs(self._reg_info[Xids, :]) < tol), axis = 0)
-                        Rs = np.arange(len(Rs))[Rs]
-                        for rids in (set(Rs) - set(Rids)):
-                            Rids.append(int(rids))
-        elif startfrom == 'X':
-            for m in range(self._stoi.shape[0]):
-                Xids, Rids = [m], []
-                for _m in np.arange(self._saved_S.shape[0])[np.any(DT_bool[DT_bool[:, m], :], axis = 0)]:
-                    Xids.append(int(_m))
-                Xids = list(set(Xids))
-                while True:
-                    Rs = np.any(~(np.abs(self._reg_info[Xids, :]) < tol), axis = 0)
-                    Rs = np.arange(len(Rs))[Rs]
-                    for rids in (set(Rs) - set(Rids)):
-                        Rids.append(int(rids))
-                    X0s = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(self._saved_S[:, Rids], axis = 1)]]
-                    Xs = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(DT_bool[np.any(DT_bool[:, X0s], axis = 1), :], axis = 0)]]
-                    for x in X0s:
-                        Xs.append(int(x))
-                    for xids in (set(Xs) - set(Xids)):
-                        Xids.append(xids)
-                    if self.check_oc(Xids, Rids):
-                        BSs.append(([int(m) for m in np.sort(Xids)], [int(n) for n in np.sort(Rids)],))
-                        break
-                    else:
-                        pass
-        elif startfrom == 'XR':
-            for n in range(self._stoi.shape[1]):
-                for m in range(self._stoi.shape[0]):
-                    Xids, Rids = [m], [n]
-                    for _m in np.arange(self._saved_S.shape[0])[np.any(DT_bool[DT_bool[:, m], :], axis = 0)]:
-                        Xids.append(int(_m))
-                    Xids = list(set(Xids))
-                    while True:
-                        X0s = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(self._saved_S[:, Rids], axis = 1)]]
-                        Xs = [int(i) for i in np.arange(self._saved_S.shape[0])[np.any(DT_bool[np.any(DT_bool[:, X0s], axis = 1), :], axis = 0)]]
-                        for x in X0s:
-                            Xs.append(int(x))
-                        for xids in (set(Xs) - set(Xids)):
-                            Xids.append(xids)
-                        if self.check_oc(Xids, Rids):
-                            BSs.append(([int(m) for m in np.sort(Xids)], [int(n) for n in np.sort(Rids)],))
-                            break
-                        else:
-                            Rs = np.any(~(np.abs(self._reg_info[Xids, :]) < tol), axis = 0)
-                            Rs = np.arange(len(Rs))[Rs]
-                            for rids in (set(Rs) - set(Rids)):
-                                Rids.append(int(rids))
-        order = np.argsort([len(bs[0]) for bs in BSs])
-        BSs   = [BSs[order[id]] for id in range(len(order))]
-        uBSs  = []
-        # to remove duplicates
-        for g in BSs:
-            flag_unique = True
-            for g_ in uBSs:
-                if g == g_:
-                    flag_unique = False
-                    break
-            if flag_unique:
-                uBSs.append(g)
-        return uBSs
 
     def structural_reduction(self, X, R):
         X_mask = np.isin(range(self._stoi.shape[0]), X)
@@ -353,25 +329,27 @@ class CRN:
         self._R_names  = [self._R_names[n] for n in range(len(self._R_names)) if (not R_mask[n])]
         return None
 
-    def proper_mBS(self, modes = ['R', 'X', 'XR']):
+    def proper_mBS(self):
+        DT = cy_kernel_image(self._stoi.T)[0].T
+        BSs = _search_for_BS(self._reg_info, self._smat().astype(np.int32), DT)
         pBSs = []
-        for mode in modes:
-            BSs = self._compute_BS(startfrom = mode)
-            for x, r in BSs:
-                if self.check_no_ecqs(x, r):
-                    idx, det = self.compute_idx_and_det(x, r)
-                    if idx == 0:
-                        pBSs.append( (x, r, idx, det,) )
-        order = np.argsort([len(bs[0]) for bs in pBSs])
-        pBSs   = [pBSs[order[id]] for id in range(len(order))]
-        return pBSs[0]
+        for x, r in BSs:
+            if self.check_no_ecqs(x, r):
+                idx, det = self.compute_idx_and_det(x, r)
+                if idx == 0:
+                    return (x, r, idx, float(det),)
+        else:
+            x = list(range(self._stoi.shape[0]))
+            r = list(range(self._stoi.shape[1]))
+            idx, det = self.compute_idx_and_det(x, r)
+            return (x, r, idx, float(det),)
 
-def indicator_subset(crn, modes = ['R', 'X', 'XR']):
+def indicator_subset(crn):
     """ I dentify the indicator subset of a Chemical Reaction Network. """
     assert isinstance(crn, CRN)
     flag = True
     res  = []
-    mBS  = crn.proper_mBS(modes)
+    mBS  = crn.proper_mBS()
     while True:
         res.append({"chemicals": [crn._X_names[m] for m in mBS[0]],
                     "reactions": [crn._R_names[n] for n in mBS[1]],
