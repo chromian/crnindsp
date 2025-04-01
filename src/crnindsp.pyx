@@ -207,7 +207,7 @@ cdef tuple _compute_index_and_det(cnp.ndarray[double, ndim=2] stoi,
     """ Compute index and determinant sign for a subnetwork. """
     cdef cnp.ndarray[double, ndim=2] subA
     X_mask, R_mask = np.isin(range(stoi.shape[0]), X), np.isin(range(stoi.shape[1]), R)
-    C11   = cy_kernel_image(stoi[X_mask, :][:, R_mask])[0]
+    C11   = cy_kernel_image(stoi[:, R_mask])[0]
     D     = cy_kernel_image(stoi.T)[0]
     Dproj = cy_kernel_image(D[X_mask, :])[1]
     index = - len(X) + len(R) - C11.shape[1] + Dproj.shape[1]
