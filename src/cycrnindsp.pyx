@@ -4,6 +4,7 @@
 # cython: wraparound = False
 # cython: boundscheck = False
 
+# ============================================================================================================================== #
 cimport cython
 from libc.stdlib cimport malloc, free
 from cython.parallel  import prange
@@ -12,6 +13,7 @@ import numpy as np
 from libcpp cimport bool as bool_t
 from scipy.linalg.cython_lapack cimport dgetrf
 from scipy.optimize import minimize
+# ============================================================================================================================== #
 
 cdef extern from "<math.h>" nogil:
     const double INFINITY
@@ -109,6 +111,8 @@ cpdef cnp.ndarray[double, ndim=2] construct_A_from(cnp.ndarray[double, ndim=2] s
     A[N:, :M] = DT
     return A
 
+# ============================================================================================================================== #
+
 cdef double cydet(double[:,:] MAT, int n, int[:] IPIV, int INFO) nogil except NAN:
     """ Compute the determinant of a square matrix MAT using DGETRF from the LAPACK library. """
     cdef int j
@@ -147,9 +151,9 @@ def signdet(A, trials = 10):
     if has_positive and has_negative:
         return  NAN
     elif has_positive:
-        return  INF
+        return  1.0
     elif has_negative:
-        return -INF
+        return -1.0
     else:
         return  0.0
 
@@ -200,30 +204,49 @@ cdef bool_t[:] cy_iBSsearcher(bool_t[:] X, bool_t[:] R,
                               bool_t[:,:] _oc_keeper,
                               bool_t[:,:] _lol_keeper,
                               int M, int N):
-    cdef bool_t[:] newX = np.zeros(shape = (M,), dtype = np.bool_) 
-    cdef bool_t[:] newR = np.zeros(shape = (N,), dtype = np.bool_)
+    cdef bool_t[:] preX = np.zeros(shape = (M,), dtype = np.bool_)
+    cdef bool_t[:] preR = np.zeros(shape = (N,), dtype = np.bool_)
+    cdef bool_t[:] posX = np.zeros(shape = (M,), dtype = np.bool_)
+    cdef bool_t[:] posR = np.zeros(shape = (N,), dtype = np.bool_)
     cdef bool_t[:] gamma = np.zeros(shape = (M+N,), dtype = np.bool_)
-    cdef int p = 0, P = M+N, q
+    cdef int p = 0, P = M+N, q, i, j
     cdef bool_t flag_updated
-    newX[...] = X
-    newR[...] = R
+    posX[...] = X
+    posR[...] = R
+    preX[...] = X
+    preR[...] = R
     for p in range(P):
-        newX += np.dot(_ecq_avoider, newX)
-        newR += np.dot(_oc_keeper, newX)
-        newX += np.dot(_lol_keeper, newR)
+        for i in prange(M, nogil = True):
+            if preX[i]:
+                for j in prange(N):
+                    if _oc_keeper[i, j]:
+                        posR[j] = True
+        for j in prange(N, nogil = True):
+            if posR[j]:
+                for i in prange(M):
+                    if _lol_keeper[i, j]:
+                        posX[i] = True
+        for i in prange(M, nogil = True):
+            if posX[i]:
+                for j in prange(M):
+                    if _ecq_avoider[i, j]:
+                        posX[j] = True
         flag_updated = False
         for q in prange(M, nogil = True):
-            if newX[q] != X[q]:
+            if posX[q] != preX[q]:
                 flag_updated = True
         for q in prange(N, nogil = True):
-            if newR[q] != R[q]:
+            if posR[q] != preR[q]:
                 flag_updated = True
         if not flag_updated:
             break
+        else:
+            preX[...] = posX
+            preR[...] = posR
     for p in prange(M, nogil=True):
-        gamma[p] = newX[p]
+        gamma[p] = posX[p]
     for p in prange(N, nogil=True):
-        gamma[M+p] = newR[p]
+        gamma[M+p] = posR[p]
     return gamma
 
 cdef int cy_chiindex(cnp.ndarray[double, ndim=2] stoi,
@@ -231,15 +254,16 @@ cdef int cy_chiindex(cnp.ndarray[double, ndim=2] stoi,
                      bool_t[:] Xg, bool_t[:] Rg):
     cdef cnp.ndarray[double, ndim=2] C11
     cdef int idx, nRg = np.sum(Rg), nXg = np.sum(Xg), cokers, cycles
-    C11 = ker(stoi[Xg,:][:,Rg])
+    C11 = ker(stoi[:,Rg])
     cokers = nXg -ker(DT[:,Xg]).shape[1]
-    cycles = C11.shape[1] if (nXg != 0) else 0
+    cycles = C11.shape[1]
     idx = nRg -nXg +cokers -cycles
     return idx
 
 class CRN:
     """ Chemical Reaction Network. """
-    def __init__(self, stoi, reginfo = None, X_names = None, R_names = None):
+    def __init__(self, stoi, reginfo = None, X_names = None, R_names = None, name = None):
+        self.name    = name
         self.stoi    = stoi
         if reginfo is None:
             reginfo = np.zeros(shape = stoi.shape, dtype = float)
@@ -287,12 +311,12 @@ class CRN:
         res = np.array(res)
         return res[:M], res[M:]
 
-    def iBSs(self):
+    def iBSs(self, trials = 1):
         """ Searching for regulatory modules w/o eCQs. """
         M, N = self.stoi.shape
         X = np.zeros(shape=(M,), dtype = np.bool_)
         R = np.zeros(shape=(N,), dtype = np.bool_)
-        S = self._sensitivity_()
+        S = self._sensitivity_(trials)
         DT = self.A[self.stoi.shape[1]:,:self.stoi.shape[0]]
         iBSs_list = []
         for m in range(-1, M):
@@ -302,7 +326,7 @@ class CRN:
                     X[m] = True
                 R[::1] = False
                 R[n] = True
-                res  = cy_iBSsearcher(X, R, self._ecq_avoider, self._oc_keeper.T, S, M, N)
+                res  = cy_iBSsearcher(X, R, self._ecq_avoider, self._oc_keeper, S, M, N)
                 res  = np.array(res)
                 X, R = res[:M], res[M:]
                 index = cy_chiindex(self.stoi, DT, X, R)
@@ -377,4 +401,4 @@ def indicator_diagnose(crn):
             break
     return res
 
-# ===========================
+# ===== [ END OF SCRIPT ] ====================================================================================================== #
