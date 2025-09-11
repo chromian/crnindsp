@@ -414,19 +414,19 @@ cdef bool_t[:] cy_isoBS_searcher(bool_t[:] XandR,
             newXR[p] = XandR[p]
         for p in prange(P, nogil = False):
             # make the subnetwork output-complete
-            for m in prange(num_chem, nogil = True):
+            for m in prange(num_chem, nogil = False):
                 if newXR[m]:
                     for n in prange(num_react):
                         if oc_keeper[m, n]:
                             newXR[num_chem + n] = True
             # let the subnetwork localize the responses to perturbation
-            for n in prange(num_react, nogil = True):
+            for n in prange(num_react, nogil = False):
                 if newXR[num_chem + n]:
                     for m in prange(num_chem):
                         if lo_keeper[m, n]:
                             newXR[m] = True
             # let the subnetwork has not emergenct CQs
-            for m in prange(num_chem, nogil = True):
+            for m in prange(num_chem, nogil = False):
                 if newXR[m]:
                     for n in prange(num_chem):
                         if cq_class[m, n]:
@@ -439,7 +439,7 @@ cdef bool_t[:] cy_isoBS_searcher(bool_t[:] XandR,
             if not flag_updated:
                 break
             else:
-                for m in prange(P):
+                for m in prange(P, nogil = False):
                     XandR[p] = newXR[p]
         # save the result to the original array
         for p in prange(P):
