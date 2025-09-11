@@ -3,5 +3,5 @@ A toolbox for the identification of indicator species in a chemical reaction net
 
 ## Installation
 ```
-python setup.py build_ext --inplace
+pip install git+https://github.com/chromian/crnindsp.git
 ```
