@@ -6,8 +6,8 @@ import Cython.Compiler.Options
 Cython.Compiler.Options.annotate = True
 
 extensions = [
-    Extension("crnindsp",
-              ["src/cycrnindsp.pyx"],
+    Extension("crnindsp.crnindsp",
+              ["src/cycrnindsp/crnindsp.pyx"],
               include_dirs=[np.get_include()],
               extra_compile_args = ["-w"]
     )
@@ -20,3 +20,4 @@ setup(
     ext_modules = cythonize(extensions, annotate = True),
     include_dirs=[np.get_include()],
 )
+
