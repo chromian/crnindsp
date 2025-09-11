@@ -5,10 +5,6 @@ import Cython.Compiler.Options
 
 Cython.Compiler.Options.annotate = True
 
-# Read dependencies from requirements.txt
-with open("requirements.txt") as f:
-    requirements = f.read().splitlines()
-
 extensions = [
     Extension(
         "crnindsp.crnindsp",
@@ -28,5 +24,6 @@ setup(
     include_dirs=[np.get_include()],
     zip_safe=False,
 )
+
 
 
