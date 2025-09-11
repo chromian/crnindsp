@@ -2,7 +2,12 @@ from setuptools import setup, Extension, find_packages
 from Cython.Build import cythonize
 import numpy as np
 import Cython.Compiler.Options
+
 Cython.Compiler.Options.annotate = True
+
+# Read dependencies from requirements.txt
+with open("requirements.txt") as f:
+    requirements = f.read().splitlines()
 
 extensions = [
     Extension(
@@ -23,4 +28,5 @@ setup(
     include_dirs=[np.get_include()],
     zip_safe=False,
 )
+
 
