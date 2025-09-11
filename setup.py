@@ -15,7 +15,7 @@ extensions = [
 
 setup(
     name='crnindsp',
-    version='0.0.3',
+    version='0.0.4',
     author='Yong-Jin Huang',
     packages=find_packages(where="src"),
     package_dir={"": "src"},
@@ -23,3 +23,4 @@ setup(
     include_dirs=[np.get_include()],
     zip_safe=False,
 )
+
