@@ -13,6 +13,7 @@ This toolbox is useful for researchers and scientists working in systems chemist
 
 ## Reference
 The theoretical foundations of `crnindsp` are presented in:
+
 [1] Huang, Yong-Jin, Atsushi Mochizuki, and Takashi Okada. "Identifying Phenotype-Indicative Molecules from the Structure of Biochemical Reaction Networks." _bioRxiv_ (2025): 2025-10.
 
 ## Installation
