@@ -11,6 +11,10 @@ A Python toolbox for the identification of indicator species in a chemical react
 
 This toolbox is useful for researchers and scientists working in systems chemistry, computational biology, or related fields, particularly those studying multistable systems.
 
+## Reference
+The theoretical foundations of `crnindsp` are presented in:
+[1] Huang, Yong-Jin, Atsushi Mochizuki, and Takashi Okada. "Identifying Phenotype-Indicative Molecules from the Structure of Biochemical Reaction Networks." _bioRxiv_ (2025): 2025-10.
+
 ## Installation
 
 You can install `crnindsp` directly from GitHub using pip:
