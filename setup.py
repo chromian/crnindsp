@@ -15,8 +15,8 @@ extensions = [
 ]
 
 INSTALL_REQUIRES = [
-    'numpy',
-    'scipy',
+    'numpy>=1.23.5',
+    'scipy>=1.10.1',
     'cython>=3.1.0',
 ]
 
