@@ -16,7 +16,7 @@ extensions = [
 
 INSTALL_REQUIRES = [
     'numpy>=1.23.5',
-    'scipy>=1.10.1',
+    'scipy>=1.14.0',
 ]
 
 setup(
@@ -31,5 +31,6 @@ setup(
     install_requires=INSTALL_REQUIRES,
     python_requires='>=3',
 )
+
 
 
