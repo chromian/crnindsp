@@ -29,8 +29,9 @@ setup(
     include_dirs=[np.get_include()],
     zip_safe=False,
     # install_requires=INSTALL_REQUIRES,
-    python_requires='>=3',
+    # python_requires='>=3',
 )
+
 
 
 
