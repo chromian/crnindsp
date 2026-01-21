@@ -28,7 +28,7 @@ cdef inline bool_t iszero(double z) nogil:
     """Check if a value is within tolerance of zero."""
     return fabs(z) < TOL
 
-cdef void cy_rref(double[:, :] MAT, int rows, int cols) nogil:
+cdef void cy_rref(double[:, :] MAT, int rows, int cols) noexcept nogil:
     """
     Compute the reduced row echelon form (RREF) of a matrix in-place.
 
@@ -85,7 +85,7 @@ cdef void cy_rref(double[:, :] MAT, int rows, int cols) nogil:
     finally:
         free(temp)
 
-cdef int cy_nullity(double[:, :] mat, double[:, :] WORK, int rows, int cols) nogil except -1:
+cdef int cy_nullity(double[:, :] mat, double[:, :] WORK, int rows, int cols) except -1 nogil:
     """
     Compute the nullity (dimension of kernel space) using Gaussian elimination.
 
@@ -122,7 +122,7 @@ cdef int cy_nullity(double[:, :] mat, double[:, :] WORK, int rows, int cols) nog
                 return col
     return cols
 
-cdef double cy_det(double[:, :] MAT, int n) nogil except NAN:
+cdef double cy_det(double[:, :] MAT, int n) except NAN nogil:
     """
     Compute the determinant of a square matrix using LAPACK's DGETRF.
 
@@ -169,7 +169,7 @@ cdef double cy_det(double[:, :] MAT, int n) nogil except NAN:
     finally:
         free(IPIV)
 
-cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) nogil:
+cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) noexcept nogil:
     """
     Compute the adjugate (classical adjoint) matrix of a square matrix in-place.
 
@@ -378,7 +378,7 @@ cdef bool_t[:] cy_isoBS_searcher(bool_t[:] XandR,
                                  bool_t[:, :] oc_keeper,
                                  bool_t[:, :] lo_keeper,
                                  bool_t[:, :] cq_class,
-                                 int num_chem, int num_react) nogil:
+                                 int num_chem, int num_react) noexcept nogil:
     """
     Search for an isolated buffered subnetwork by expanding XandR.
 
@@ -414,19 +414,19 @@ cdef bool_t[:] cy_isoBS_searcher(bool_t[:] XandR,
             newXR[p] = XandR[p]
         for p in prange(P, nogil = False):
             # make the subnetwork output-complete
-            for m in prange(num_chem, nogil = False):
+            for m in range(num_chem):
                 if newXR[m]:
                     for n in prange(num_react):
                         if oc_keeper[m, n]:
                             newXR[num_chem + n] = True
             # let the subnetwork localize the responses to perturbation
-            for n in prange(num_react, nogil = False):
+            for n in range(num_react):
                 if newXR[num_chem + n]:
                     for m in prange(num_chem):
                         if lo_keeper[m, n]:
                             newXR[m] = True
             # let the subnetwork has not emergenct CQs
-            for m in prange(num_chem, nogil = False):
+            for m in range(num_chem):
                 if newXR[m]:
                     for n in prange(num_chem):
                         if cq_class[m, n]:
@@ -439,7 +439,7 @@ cdef bool_t[:] cy_isoBS_searcher(bool_t[:] XandR,
             if not flag_updated:
                 break
             else:
-                for m in prange(P, nogil = False):
+                for m in prange(P):
                     XandR[p] = newXR[p]
         # save the result to the original array
         for p in prange(P):
