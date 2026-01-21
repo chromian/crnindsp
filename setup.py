@@ -14,10 +14,10 @@ extensions = [
     )
 ]
 
-INSTALL_REQUIRES = [
-    'numpy>=1.23.5',
-    'scipy>=1.10.1',
-]
+# INSTALL_REQUIRES = [
+#     'numpy>=1.23.5',
+#     'scipy>=1.10.1',
+# ]
 
 setup(
     name='crnindsp',
@@ -28,9 +28,10 @@ setup(
     ext_modules=cythonize(extensions, annotate=True, language_level=3),
     include_dirs=[np.get_include()],
     zip_safe=False,
-    install_requires=INSTALL_REQUIRES,
+    # install_requires=INSTALL_REQUIRES,
     python_requires='>=3',
 )
+
 
 
 
