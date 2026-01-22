@@ -481,7 +481,7 @@ cdef bool_t cy_no_emergent_cycles(cnp.ndarray[double, ndim=2] stoi, bool_t[:] Xa
         double[:, :] WORK             # Working array for nullity
         double[:, :] C11              # Null space basis of subnetwork
         double[:, :] nu01C11          # Orthogonality check matrix
-
+    
     M1 = np.sum(XandR[:M])
     N1 = np.sum(XandR[M:])
     # Extract selected species and reactions
