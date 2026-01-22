@@ -1,6 +1,6 @@
 # crnindsp
 
-A Python toolbox for the identification of indicator species in a chemical reaction network.
+A Python toolbox for the identification of **ind**icator **sp**ecies in a **c**hemical **r**eaction **n**etwork.
 
 ## Overview
 
