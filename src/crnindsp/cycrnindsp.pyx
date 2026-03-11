@@ -591,7 +591,7 @@ class CRN:
         self.__cq_class = cy_cq_classifier(np.array(self.A[self.stoi.shape[1]:, :self.stoi.shape[0]]))
         self.__oc_keeper = ~(np.abs(self.reginfo) < TOL)
 
-    def _smat_(self, trial=2):
+    cpdef _smat_(self, trial=2):
         """
         Compute a boolean sensitivity matrix using random perturbations.
 
