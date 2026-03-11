@@ -9,7 +9,7 @@ Cython.Compiler.Options.annotate = True
 
 extensions = [
     Extension(
-        "crnindsp",
+        "crnindsp.cycrnindsp",
         ["src/crnindsp/cycrnindsp.pyx"],
         include_dirs=[np.get_include()],
         extra_compile_args=["-w"]
@@ -33,3 +33,4 @@ setup(
     install_requires=INSTALL_REQUIRES,
     python_requires='>=3',
 )
+
