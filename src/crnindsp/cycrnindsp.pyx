@@ -122,7 +122,7 @@ cdef int cy_nullity(double[:, :] mat, double[:, :] WORK, int rows, int cols) exc
                 return col
     return cols
 
-cdef double cy_det(double[:, :] MAT, int n) except NAN nogil:
+cdef double cy_det(double[:, :] MAT, int n) nogil:
     """
     Compute the determinant of a square matrix using LAPACK's DGETRF.
 
