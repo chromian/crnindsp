@@ -607,7 +607,7 @@ class CRN:
             int N = self.stoi.shape[1]
             int L = self.A.shape[0]
             cnp.ndarray[bool_t, ndim=2] booleanS = np.zeros(shape=(M, N), dtype=np.bool_)
-            cnp.ndarray[double, ndim=2] randA, adjA
+            cnp.ndarray[double, ndim=2] randA
             cnp.ndarray[bool_t, ndim=2] varholder = ~(np.abs(self.A) < INFINITY)
             int _t_
             double[:, :, :] WORK = np.empty(shape=(L * L, L - 1, L - 1), dtype=float)
