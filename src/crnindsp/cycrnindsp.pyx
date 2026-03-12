@@ -198,9 +198,9 @@ cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) nogi
 
     # Populate WORK with minor matrices
     for row in prange(n, nogil=True):
-        for col in prange(n):
-            for i in prange(nm1):
-                for j in prange(nm1):
+        for col in range(n):
+            for i in range(nm1):
+                for j in range(nm1):
                     if i >= row and j >= col:
                         WORK[n * row + col, i, j] = MAT[i + 1, j + 1]
                     elif j >= col:
@@ -212,7 +212,7 @@ cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) nogi
 
     # Compute cofactors and transpose to form adjugate
     for row in prange(n, nogil=True):
-        for col in prange(n):
+        for col in range(n):
             if cython.cmod(row + col, 2) == 1:
                 MAT[col, row] = -cy_det(WORK[n * row + col], nm1)
             else:
