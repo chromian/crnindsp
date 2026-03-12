@@ -617,7 +617,6 @@ class CRN:
         booleanS = np.zeros(shape=(M, N), dtype=np.bool_)
         varholder = ~(np.abs(self.A) < INFINITY)
         WORK = np.empty(shape=(L * L, L - 1, L - 1), dtype=float)
-        return WORK
         for _t_ in range(trial):
             randA = np.array(self.A.copy())
             randA[varholder] = np.random.normal(size=np.sum(varholder), scale=10.0)
