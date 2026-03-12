@@ -214,9 +214,6 @@ cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) nogi
 
     return MAT
 
-def adjugate(MAT, n, WORK):
-    return cy_adjugate(MAT, n, WORK)
-
 cdef double[:, :] cy_construct_A_from(cnp.ndarray[double, ndim=2] stoi, double[:, :] reginfo):
     """
     Construct the A matrix from stoichiometry and regulation information.
@@ -619,32 +616,6 @@ class CRN:
             booleanS |= (np.abs(adjA) > TOL)[:M, :N]  # In-place OR for aggregation
 
         return booleanS
-        # cdef:
-        # M = self.stoi.shape[0]  #     int M = self.stoi.shape[0]
-        # N = self.stoi.shape[1]  #     int N = self.stoi.shape[1]
-        # L = self.A.shape[0]     #     int L = self.A.shape[0]
-        #     cnp.ndarray[bool_t, ndim=2] booleanS = np.zeros(shape=(M, N), dtype=np.bool_)
-        #     cnp.ndarray[double, ndim=2] randA
-        #     cnp.ndarray[bool_t, ndim=2] varholder = ~(np.abs(self.A) < INFINITY)
-        #     int _t_
-        #     double[:, :, :] WORK = np.empty(shape=(L * L, L - 1, L - 1), dtype=float)
-        # booleanS = np.zeros(shape=(M, N), dtype=np.bool_)
-        # varholder = ~(np.abs(self.A) < INFINITY)
-        # WORK = np.empty(shape=(L * L, L - 1, L - 1), dtype=float)
-        # for _t_ in range(trial):
-        #     randA = np.array(self.A.copy())
-        #     randA[varholder] = np.random.normal(size=np.sum(varholder), scale=10.0)
-        #     adjA = cy_adjugate(randA, L, WORK)
-        
-        # return adjA
-        #     booleanS |= (np.abs(adjA) > TOL)[:M, :N]  # In-place OR for aggregation
-        # for _t_ in range(trial):
-        #     randA = np.array(self.A.copy())
-        #     randA[varholder] = np.random.normal(size=np.sum(varholder), scale=10.0)
-        #     adjA = cy_adjugate(randA, L, WORK)
-        #     booleanS |= (np.abs(adjA) > TOL)[:M, :N]  # In-place OR for aggregation
-
-        # return booleanS
 
     def isoBS_searchfrom(self, X, R, trial=2):
         """
