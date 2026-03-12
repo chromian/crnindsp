@@ -126,50 +126,44 @@ cdef double cy_det(double[:, :] MAT, int n) nogil:
     """
     Compute the determinant of a square matrix using LAPACK's DGETRF.
 
-    Parameters:
-    -----------
-    MAT : memoryview
-        Input square matrix (n x n), modified in-place by LU factorization
-    n : int
-        Dimension of the square matrix
+    MAT is modified in-place by LU factorization.
 
-    Returns:
-    --------
-    double
-        Determinant of the matrix
-
-    Raises:
+    Returns
     -------
-    ValueError
-        If memory allocation fails or LAPACK's DGETRF returns an error
+    double
+        Determinant of the matrix, or NAN if allocation fails
+        or LAPACK reports an error.
     """
     if n <= 0:
         return 0.0
+
     cdef:
-        int j, INFO = 0
-        int* IPIV = <int*> malloc(n * sizeof(int))
+        int j
+        int INFO = 0
+        int* IPIV
         double detval = 1.0
 
+    IPIV = <int*> malloc(n * sizeof(int))
     if IPIV == NULL:
         return NAN
 
     try:
-        # Perform LU factorization with partial pivoting
         dgetrf(&n, &n, &MAT[0, 0], &n, IPIV, &INFO)
-        # Check for LAPACK error
+
         if INFO != 0:
             return NAN
-        # Compute determinant with sign adjustments for pivots
+
         for j in range(n):
-            if j != (IPIV[j] - 1):  # Row swap occurred
-                detval *= -MAT[j, j]
-            else:
-                detval *= MAT[j, j]
+            detval *= MAT[j, j]
+            if IPIV[j] != j + 1:
+                detval = -detval
+
         return detval
+
     finally:
         free(IPIV)
 
-cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) nogil except *:
+cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) nogil:
     """
     Compute the adjugate (classical adjoint) matrix of a square matrix in-place.
 
@@ -180,7 +174,7 @@ cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) nogi
     n : int
         Dimension of the square matrix
     WORK : memoryview
-        3D working array (n x n x (n-1) x (n-1)) for minor matrices
+        3D working array ((n x n) x (n-1) x (n-1)) for minor matrices
 
     Returns:
     -------
