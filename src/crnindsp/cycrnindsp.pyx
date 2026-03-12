@@ -220,6 +220,9 @@ cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) nogi
 
     return MAT
 
+def adjugate(MAT, n, WORK):
+    return cy_adjugate(MAT, n, WORK)
+
 cdef double[:, :] cy_construct_A_from(cnp.ndarray[double, ndim=2] stoi, double[:, :] reginfo):
     """
     Construct the A matrix from stoichiometry and regulation information.
