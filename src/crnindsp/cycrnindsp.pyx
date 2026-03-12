@@ -605,24 +605,41 @@ class CRN:
         ndarray
             Boolean sensitivity matrix (num_chem x num_react)
         """
+        cdef:
+            int M = self.stoi.shape[0]
+            int N = self.stoi.shape[1]
+            int L = self.A.shape[0]
+            cnp.ndarray[bool_t, ndim=2] booleanS = np.zeros(shape=(M, N), dtype=np.bool_)
+            cnp.ndarray[double, ndim=2] randA
+            cnp.ndarray[bool_t, ndim=2] varholder = ~(np.abs(self.A) < INFINITY)
+            int _t_
+            double[:, :, :] WORK = np.empty(shape=(L * L, L - 1, L - 1), dtype=float)
+
+        for _t_ in range(trial):
+            randA = np.array(self.A.copy())
+            randA[varholder] = np.random.normal(size=np.sum(varholder), scale=10.0)
+            adjA = cy_adjugate(randA, L, WORK)
+            booleanS |= (np.abs(adjA) > TOL)[:M, :N]  # In-place OR for aggregation
+
+        return booleanS
         # cdef:
-        M = self.stoi.shape[0]  #     int M = self.stoi.shape[0]
-        N = self.stoi.shape[1]  #     int N = self.stoi.shape[1]
-        L = self.A.shape[0]     #     int L = self.A.shape[0]
+        # M = self.stoi.shape[0]  #     int M = self.stoi.shape[0]
+        # N = self.stoi.shape[1]  #     int N = self.stoi.shape[1]
+        # L = self.A.shape[0]     #     int L = self.A.shape[0]
         #     cnp.ndarray[bool_t, ndim=2] booleanS = np.zeros(shape=(M, N), dtype=np.bool_)
         #     cnp.ndarray[double, ndim=2] randA
         #     cnp.ndarray[bool_t, ndim=2] varholder = ~(np.abs(self.A) < INFINITY)
         #     int _t_
         #     double[:, :, :] WORK = np.empty(shape=(L * L, L - 1, L - 1), dtype=float)
-        booleanS = np.zeros(shape=(M, N), dtype=np.bool_)
-        varholder = ~(np.abs(self.A) < INFINITY)
-        WORK = np.empty(shape=(L * L, L - 1, L - 1), dtype=float)
-        for _t_ in range(trial):
-            randA = np.array(self.A.copy())
-            randA[varholder] = np.random.normal(size=np.sum(varholder), scale=10.0)
-            adjA = cy_adjugate(randA, L, WORK)
+        # booleanS = np.zeros(shape=(M, N), dtype=np.bool_)
+        # varholder = ~(np.abs(self.A) < INFINITY)
+        # WORK = np.empty(shape=(L * L, L - 1, L - 1), dtype=float)
+        # for _t_ in range(trial):
+        #     randA = np.array(self.A.copy())
+        #     randA[varholder] = np.random.normal(size=np.sum(varholder), scale=10.0)
+        #     adjA = cy_adjugate(randA, L, WORK)
         
-        return adjA
+        # return adjA
         #     booleanS |= (np.abs(adjA) > TOL)[:M, :N]  # In-place OR for aggregation
         # for _t_ in range(trial):
         #     randA = np.array(self.A.copy())
