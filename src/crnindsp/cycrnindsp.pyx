@@ -169,7 +169,7 @@ cdef double cy_det(double[:, :] MAT, int n) except NAN nogil:
     finally:
         free(IPIV)
 
-cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) nogil:
+cdef double[:,:] cy_adjugate(double[:, :] MAT, int n, double[:, :, :] WORK) nogil except *:
     """
     Compute the adjugate (classical adjoint) matrix of a square matrix in-place.
 
