@@ -617,19 +617,19 @@ class CRN:
         booleanS = np.zeros(shape=(M, N), dtype=np.bool_)
         varholder = ~(np.abs(self.A) < INFINITY)
         WORK = np.empty(shape=(L * L, L - 1, L - 1), dtype=float)
-
+        return WORK
         # for _t_ in range(trial):
         #     randA = np.array(self.A.copy())
         #     randA[varholder] = np.random.normal(size=np.sum(varholder), scale=10.0)
         #     adjA = cy_adjugate(randA, L, WORK)
         #     booleanS |= (np.abs(adjA) > TOL)[:M, :N]  # In-place OR for aggregation
-        for _t_ in range(trial):
-            randA = np.array(self.A.copy())
-            randA[varholder] = np.random.normal(size=np.sum(varholder), scale=10.0)
-            adjA = cy_adjugate(randA, L, WORK)
-            booleanS |= (np.abs(adjA) > TOL)[:M, :N]  # In-place OR for aggregation
+        # for _t_ in range(trial):
+        #     randA = np.array(self.A.copy())
+        #     randA[varholder] = np.random.normal(size=np.sum(varholder), scale=10.0)
+        #     adjA = cy_adjugate(randA, L, WORK)
+        #     booleanS |= (np.abs(adjA) > TOL)[:M, :N]  # In-place OR for aggregation
 
-        return booleanS
+        # return booleanS
 
     def isoBS_searchfrom(self, X, R, trial=2):
         """
