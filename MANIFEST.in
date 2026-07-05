@@ -1,0 +1,3 @@
+include src/crnindsp/cycrnindsp.pyx
+# If you have headers or pxd files, include them too:
+# recursive-include src/crnindsp *.pyx *.pxd *.c
