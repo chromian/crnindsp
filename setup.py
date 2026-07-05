@@ -21,10 +21,21 @@ INSTALL_REQUIRES = [
     'scipy>=1.10.1',
 ]
 
+long_description = open('README.md').read()
+
 setup(
     name='crnindsp',
     version='0.1.0',
     author='Yong-Jin Huang',
+    description='A toolbox for the identification of indicator species in a chemical reaction network.',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    url='https://github.com/chromian/crnindsp',
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+    ],
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     ext_modules = cythonize(extensions, annotate = True),
