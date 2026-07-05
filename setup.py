@@ -31,11 +31,6 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/chromian/crnindsp',
-    classifiers=[
-        'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
-        'Operating System :: OS Independent',
-    ],
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     ext_modules = cythonize(extensions, annotate = True),
