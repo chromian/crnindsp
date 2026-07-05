@@ -18,7 +18,12 @@ The theoretical foundations of `crnindsp` are presented in:
 
 ## Installation
 
-You can install `crnindsp` directly from GitHub using pip:
+You can install `crnindsp` by
+```bash
+pip install crnindsp
+```
+
+or directly from GitHub using pip:
 
 ```bash
 pip install git+https://github.com/chromian/crnindsp.git
